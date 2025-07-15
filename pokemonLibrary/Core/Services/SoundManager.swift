@@ -4,18 +4,28 @@ import AVFoundation
 class SoundManager {
     static let shared = SoundManager()
     
+    // 旧的音频播放器（备用）
     private var audioPlayer: AVAudioPlayer?
+    
+    // 音频引擎组件
+    private var audioEngine: AVAudioEngine?
+    private var audioPlayerNode: AVAudioPlayerNode?
+    private var pitchControl: AVAudioUnitTimePitch?
+    private var currentBuffer: AVAudioPCMBuffer?
+    
     private var cachedSoundPaths: [Int: String] = [:]
     
-    // 音频播放速率 (0.5 = 半速, 1.0 = 正常速度, 2.0 = 两倍速)
-    // 降低默认播放速率，使声音听起来更自然
-    private let playbackRate: Float = 0.7
+    // 音频播放参数
+    private let playbackRate: Float = 0.8  // 播放速度 (0.5 = 半速, 1.0 = 正常速度)
+    private let playbackPitch: Float = -300  // 音调调整 (负值降低音调，正值提高音调)
     
     private init() {
         // 初始化时扫描并缓存音频文件
         scanAndCacheSounds()
         // 设置音频会话
         setupAudioSession()
+        // 初始化音频引擎
+        setupAudioEngine()
     }
     
     // 设置音频会话
@@ -26,6 +36,36 @@ class SoundManager {
             try audioSession.setActive(true)
         } catch {
             print("设置音频会话失败: \(error.localizedDescription)")
+        }
+    }
+    
+    // 设置音频引擎
+    private func setupAudioEngine() {
+        // 创建音频引擎和组件
+        audioEngine = AVAudioEngine()
+        audioPlayerNode = AVAudioPlayerNode()
+        pitchControl = AVAudioUnitTimePitch()
+        
+        // 设置初始音调和速度参数
+        pitchControl?.pitch = playbackPitch
+        pitchControl?.rate = playbackRate * 100 // AVAudioUnitTimePitch中的rate单位是百分比
+        
+        // 连接音频组件
+        if let engine = audioEngine, let playerNode = audioPlayerNode, let pitch = pitchControl {
+            engine.attach(playerNode)
+            engine.attach(pitch)
+            
+            // 构建处理链: 播放节点 -> 音调控制 -> 输出
+            engine.connect(playerNode, to: pitch, format: nil)
+            engine.connect(pitch, to: engine.mainMixerNode, format: nil)
+            
+            // 准备引擎
+            do {
+                try engine.start()
+                print("音频引擎初始化成功")
+            } catch {
+                print("启动音频引擎失败: \(error.localizedDescription)")
+            }
         }
     }
     
@@ -161,39 +201,98 @@ class SoundManager {
             return
         }
         
+        // 使用音频引擎播放带有音调调整的音频
+        playWithAudioEngine(path: soundPath)
+    }
+    
+    // 使用音频引擎播放并处理音频
+    private func playWithAudioEngine(path: String) {
+        guard let engine = audioEngine, let playerNode = audioPlayerNode, let pitch = pitchControl else {
+            print("音频引擎未初始化")
+            return
+        }
+        
         do {
-            // 创建音频播放器
-            audioPlayer = try AVAudioPlayer(contentsOf: URL(fileURLWithPath: soundPath))
+            // 准备音频文件
+            let audioFile = try AVAudioFile(forReading: URL(fileURLWithPath: path))
+            let format = audioFile.processingFormat
             
-            // 设置播放速率
-            audioPlayer?.enableRate = true
-            audioPlayer?.rate = playbackRate
+            // 创建音频缓冲区
+            guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(audioFile.length)) else {
+                print("无法创建音频缓冲区")
+                return
+            }
             
-            // 可以调整音量，使音频更清晰
-            audioPlayer?.volume = 1.0
+            // 加载音频数据
+            try audioFile.read(into: buffer)
+            currentBuffer = buffer
             
-            audioPlayer?.prepareToPlay()
-            audioPlayer?.play()
-            print("开始播放宝可梦音频: ID=\(pokemonId), 播放速率=\(playbackRate)")
+            // 确保引擎正在运行
+            if !engine.isRunning {
+                try engine.start()
+            }
+            
+            // 设置音调和速度
+            pitch.pitch = playbackPitch
+            pitch.rate = playbackRate * 100
+            
+            // 停止之前的播放
+            if playerNode.isPlaying {
+                playerNode.stop()
+            }
+            
+            // 播放音频
+            playerNode.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
+            playerNode.play()
+            
+            print("开始播放宝可梦音频（音调调整）: 速度=\(playbackRate), 音调调整=\(playbackPitch)")
         } catch {
             print("播放音频失败: \(error.localizedDescription)")
+            
+            // 如果音频引擎播放失败，尝试使用备用方法
+            playWithAVAudioPlayer(path: path)
+        }
+    }
+    
+    // 使用AVAudioPlayer作为备用播放方法
+    private func playWithAVAudioPlayer(path: String) {
+        do {
+            audioPlayer = try AVAudioPlayer(contentsOf: URL(fileURLWithPath: path))
+            audioPlayer?.enableRate = true
+            audioPlayer?.rate = playbackRate
+            audioPlayer?.prepareToPlay()
+            audioPlayer?.play()
+            
+            print("使用备用方法播放音频（只能调整速度）: 速度=\(playbackRate)")
+        } catch {
+            print("备用播放方法失败: \(error.localizedDescription)")
         }
     }
     
     // 停止播放音频
     func stopSound() {
+        // 停止音频引擎播放
+        if let playerNode = audioPlayerNode, playerNode.isPlaying {
+            playerNode.stop()
+            print("停止音频引擎播放")
+        }
+        
+        // 停止备用播放器
         if let player = audioPlayer, player.isPlaying {
             player.stop()
-            print("停止播放音频")
+            print("停止备用播放器")
         }
     }
     
-    // 调整播放速度（在需要时可以动态调整速度）
-    func adjustPlaybackRate(to rate: Float) {
-        if let player = audioPlayer {
-            player.enableRate = true
-            player.rate = rate
-            print("调整播放速率为: \(rate)")
-        }
+    // 调整音调
+    func adjustPitch(to pitch: Float) {
+        pitchControl?.pitch = pitch
+        print("调整音调为: \(pitch)")
+    }
+    
+    // 调整播放速度
+    func adjustRate(to rate: Float) {
+        pitchControl?.rate = rate * 100
+        print("调整播放速度为: \(rate)")
     }
 } 
