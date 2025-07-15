@@ -104,6 +104,24 @@ class PokemonService {
             )
         ),
         Pokemon(
+            id: 52,
+            name: "喵喵 Meowth",
+            types: [.normal],
+            imageUrl: "meowth",
+            description: "喵喵非常喜欢闪闪发光的东西。它特别喜欢圆形的金币，因为它可以在上面留下爪印。它的额头上有一枚金色的护符，能够发出微弱的光芒。\nMeowth loves shiny objects, especially round coins that it can stack on its forehead. The charm on its forehead glows faintly at night.",
+            height: 4.0,
+            weight: 42.0,
+            abilities: ["拾取 Pickup", "技术高手 Technician"],
+            stats: Pokemon.Stats(
+                hp: 40,
+                attack: 45,
+                defense: 35,
+                specialAttack: 40,
+                specialDefense: 40,
+                speed: 90
+            )
+        ),
+        Pokemon(
             id: 94,
             name: "耿鬼 Gengar",
             types: [.ghost, .poison],

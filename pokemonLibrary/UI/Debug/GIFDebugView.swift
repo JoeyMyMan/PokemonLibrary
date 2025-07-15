@@ -10,6 +10,7 @@ struct GIFDebugView: View {
         (id: 6, name: "喷火龙 Charizard"),
         (id: 7, name: "杰尼龟 Squirtle"),
         (id: 25, name: "皮卡丘 Pikachu"),
+        (id: 52, name: "喵喵 Meowth"),
         (id: 94, name: "耿鬼 Gengar"),
         (id: 130, name: "暴鲤龙 Gyarados"),
         (id: 143, name: "卡比兽 Snorlax"),

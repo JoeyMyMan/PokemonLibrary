@@ -287,6 +287,7 @@ class GIFManager {
         case 6: return "Charizard"
         case 7: return "Squirtle"
         case 25: return "Pikachu"
+        case 52: return "Meowth"
         case 94: return "Gengar"
         case 130: return "Gyarados"
         case 143: return "Snorlax"

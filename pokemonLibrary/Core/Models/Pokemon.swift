@@ -35,6 +35,7 @@ struct Pokemon: Identifiable, Equatable {
         case 6: return "flame.fill" // 喷火龙
         case 7: return "drop.fill" // 杰尼龟
         case 25: return "bolt.fill" // 皮卡丘
+        case 52: return "dollarsign.circle.fill" // 喵喵
         case 94: return "moon.stars.fill" // 耿鬼
         case 130: return "tornado" // 暴鲤龙
         case 143: return "zzz" // 卡比兽
