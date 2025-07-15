@@ -21,7 +21,10 @@ struct Pokemon: Identifiable, Equatable {
     
     // 获取本地图片名称
     var localImageName: String {
-        return "\(String(format: "%03d", id))_\(name)"
+        // 从名称中提取中文部分（假设格式为"中文 英文"）
+        let chineseName = name.components(separatedBy: " ").first ?? ""
+        // 返回资产名称，格式为"001_妙蛙种子"
+        return "\(String(format: "%03d", id))_\(chineseName)"
     }
     
     // 获取系统图标名称，用于替代实际图片
@@ -52,19 +55,19 @@ struct Pokemon: Identifiable, Equatable {
 }
 
 enum PokemonType: String, CaseIterable {
-    case normal = "一般"
-    case fire = "火"
-    case water = "水"
-    case electric = "电"
-    case grass = "草"
-    case ice = "冰"
-    case fighting = "格斗"
-    case poison = "毒"
-    case ground = "地面"
-    case flying = "飞行"
-    case psychic = "超能力"
-    case bug = "虫"
-    case rock = "岩石"
-    case ghost = "幽灵"
-    case dragon = "龙"
+    case normal = "一般 Normal"
+    case fire = "火 Fire"
+    case water = "水 Water"
+    case electric = "电 Electric"
+    case grass = "草 Grass"
+    case ice = "冰 Ice"
+    case fighting = "格斗 Fighting"
+    case poison = "毒 Poison"
+    case ground = "地面 Ground"
+    case flying = "飞行 Flying"
+    case psychic = "超能力 Psychic"
+    case bug = "虫 Bug"
+    case rock = "岩石 Rock"
+    case ghost = "幽灵 Ghost"
+    case dragon = "龙 Dragon"
 } 

@@ -8,14 +8,32 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var showDebugView = false
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        NavigationView {
+            PokemonListView()
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            showDebugView = true
+                        }) {
+                            Image(systemName: "ladybug.fill")
+                                .foregroundColor(.gray)
+                        }
+                    }
+                }
+                .sheet(isPresented: $showDebugView) {
+                    NavigationView {
+                        GIFDebugView()
+                            .navigationTitle("GIF调试")
+                            .navigationBarItems(trailing: Button("关闭") {
+                                showDebugView = false
+                            })
+                    }
+                }
         }
-        .padding()
+        .navigationViewStyle(StackNavigationViewStyle())
     }
 }
 

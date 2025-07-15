@@ -25,13 +25,26 @@ struct PokemonImageView: View {
     let pokemon: Pokemon
     var width: CGFloat? = nil
     var height: CGFloat? = nil
+    @State private var imageLoadError: Bool = false
     
     // 检查图片是否存在于Assets中
     private func imageExists(named imageName: String) -> Bool {
+        #if DEBUG
+        print("尝试加载图片: \(imageName)")
+        #endif
+        
         #if os(iOS) || os(tvOS)
-        return UIImage(named: imageName) != nil
+        let exists = UIImage(named: imageName) != nil
+        #if DEBUG
+        print("图片\(exists ? "存在" : "不存在")")
+        #endif
+        return exists
         #elseif os(macOS)
-        return NSImage(named: imageName) != nil
+        let exists = NSImage(named: imageName) != nil
+        #if DEBUG
+        print("图片\(exists ? "存在" : "不存在")")
+        #endif
+        return exists
         #else
         return false
         #endif
@@ -39,7 +52,7 @@ struct PokemonImageView: View {
     
     var body: some View {
         Group {
-            if imageExists(named: pokemon.localImageName) {
+            if !imageLoadError && imageExists(named: pokemon.localImageName) {
                 // 从Assets加载图片
                 Image(pokemon.localImageName)
                     .resizable()
@@ -50,6 +63,11 @@ struct PokemonImageView: View {
                         Circle()
                             .fill(Color.forType(pokemon.types.first ?? .normal).opacity(0.2))
                     )
+                    .onAppear {
+                        #if DEBUG
+                        print("成功加载图片: \(pokemon.localImageName)")
+                        #endif
+                    }
             } else {
                 // 使用系统图标作为备用
                 Image(systemName: pokemon.systemIconName)
@@ -62,7 +80,16 @@ struct PokemonImageView: View {
                         Circle()
                             .fill(Color.forType(pokemon.types.first ?? .normal).opacity(0.2))
                     )
+                    .onAppear {
+                        #if DEBUG
+                        print("使用备用图标: \(pokemon.systemIconName) 代替 \(pokemon.localImageName)")
+                        #endif
+                    }
             }
+        }
+        .onAppear {
+            // 在视图出现时检查图片是否存在
+            imageLoadError = !imageExists(named: pokemon.localImageName)
         }
     }
 } 

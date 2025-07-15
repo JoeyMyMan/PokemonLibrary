@@ -10,13 +10,25 @@ import SwiftUI
 @main
 struct pokemonLibraryApp: App {
     init() {
-        // 在应用启动时下载Pokemon图片
+        // 应用启动时初始化
+        configureApp()
+    }
+    
+    // 配置应用
+    private func configureApp() {
+        print("应用启动...")
+        
+        // 初始化GIFManager
+        print("初始化GIFManager...")
+        let _ = GIFManager.shared
+        
+        // 下载Pokemon图片
         ImageDownloader.shared.downloadImages()
     }
     
     var body: some Scene {
         WindowGroup {
-            PokemonListView()
+            ContentView()
         }
     }
 }
@@ -24,7 +36,7 @@ struct pokemonLibraryApp: App {
 #if DEBUG
 struct pokemonLibraryApp_Previews: PreviewProvider {
     static var previews: some View {
-        PokemonListView()
+        ContentView()
             .previewDevice("iPhone 13")
     }
 }

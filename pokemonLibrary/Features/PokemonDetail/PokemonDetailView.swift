@@ -26,7 +26,7 @@ struct PokemonDetailView: View {
             } else if let errorMessage = viewModel.errorMessage {
                 // 错误信息
                 VStack {
-                    Text("😢 出错了")
+                    Text("😢 出错了 Error")
                         .font(.title)
                         .padding(.bottom)
                     
@@ -40,8 +40,9 @@ struct PokemonDetailView: View {
                     VStack(spacing: 16) {
                         // 头部信息
                         VStack(alignment: .center) {
-                            // Pokemon图片
-                            PokemonImageView(pokemon: pokemon, height: 200)
+                            // Pokemon GIF动画
+                            pokemonAnimationView(for: pokemon)
+                                .frame(width: 300, height: 300)
                                 .padding()
                             
                             // ID和名字
@@ -74,13 +75,13 @@ struct PokemonDetailView: View {
                         
                         // 基本信息
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("基本信息")
+                            Text("基本信息 Basic Info")
                                 .font(.headline)
                                 .padding(.bottom, 4)
                             
-                            InfoRow(title: "身高", value: pokemon.formattedHeight)
-                            InfoRow(title: "体重", value: pokemon.formattedWeight)
-                            InfoRow(title: "特性", value: pokemon.abilities.joined(separator: ", "))
+                            InfoRow(title: "身高 Height", value: pokemon.formattedHeight)
+                            InfoRow(title: "体重 Weight", value: pokemon.formattedWeight)
+                            InfoRow(title: "特性 Abilities", value: pokemon.abilities.joined(separator: ", "))
                         }
                         .padding()
                         .background(Color.white.opacity(0.7))
@@ -89,7 +90,7 @@ struct PokemonDetailView: View {
                         
                         // 描述
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("描述")
+                            Text("描述 Description")
                                 .font(.headline)
                                 .padding(.bottom, 4)
                             
@@ -105,16 +106,16 @@ struct PokemonDetailView: View {
                         
                         // 能力值
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("能力值")
+                            Text("能力值 Stats")
                                 .font(.headline)
                                 .padding(.bottom, 4)
                             
                             StatRow(title: "HP", value: pokemon.stats.hp, color: .green)
-                            StatRow(title: "攻击", value: pokemon.stats.attack, color: .red)
-                            StatRow(title: "防御", value: pokemon.stats.defense, color: .blue)
-                            StatRow(title: "特攻", value: pokemon.stats.specialAttack, color: .purple)
-                            StatRow(title: "特防", value: pokemon.stats.specialDefense, color: .cyan)
-                            StatRow(title: "速度", value: pokemon.stats.speed, color: .yellow)
+                            StatRow(title: "攻击 ATK", value: pokemon.stats.attack, color: .red)
+                            StatRow(title: "防御 DEF", value: pokemon.stats.defense, color: .blue)
+                            StatRow(title: "特攻 SP.ATK", value: pokemon.stats.specialAttack, color: .purple)
+                            StatRow(title: "特防 SP.DEF", value: pokemon.stats.specialDefense, color: .cyan)
+                            StatRow(title: "速度 SPD", value: pokemon.stats.speed, color: .yellow)
                         }
                         .padding()
                         .background(Color.white.opacity(0.7))
@@ -125,10 +126,102 @@ struct PokemonDetailView: View {
                 }
             }
         }
-        .navigationTitle("详情")
+        .navigationTitle("详情 Details")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .onAppear {
+            // 检查GIF文件是否存在
+            if let pokemon = viewModel.pokemon {
+                print("检查宝可梦ID: \(pokemon.id) (\(pokemon.name)) 的GIF动画")
+                if let gifPath = viewModel.getAnimationPath(for: pokemon.id) {
+                    print("找到GIF路径: \(gifPath)")
+                    
+                    // 验证文件是否真的存在
+                    if FileManager.default.fileExists(atPath: gifPath) {
+                        print("GIF文件确实存在")
+                    } else {
+                        print("警告：找到的GIF路径实际上不存在！")
+                    }
+                } else {
+                    print("未找到GIF路径")
+                }
+                
+                // 特别检查小火龙
+                if pokemon.id == 4 {
+                    print("特别检查小火龙GIF")
+                    let charmanderPath = "/Users/joeygu/Desktop/pokemon/pokemonLibrary/pokemonLibrary/Resources/004_Charmander_Anim.gif"
+                    if FileManager.default.fileExists(atPath: charmanderPath) {
+                        print("小火龙GIF文件存在于原始路径")
+                    } else {
+                        print("小火龙GIF文件不存在于原始路径")
+                    }
+                }
+            }
+        }
+    }
+    
+    // 根据宝可梦ID返回对应的动画视图
+    private func pokemonAnimationView(for pokemon: Pokemon) -> some View {
+        print("创建宝可梦动画视图: ID=\(pokemon.id), 名称=\(pokemon.name)")
+        
+        // 小火龙特殊处理
+        if pokemon.id == 4 {
+            print("尝试特殊处理小火龙GIF")
+            let charmanderPath = "/Users/joeygu/Desktop/pokemon/pokemonLibrary/pokemonLibrary/Resources/004_Charmander_Anim.gif"
+            
+            if FileManager.default.fileExists(atPath: charmanderPath) {
+                print("小火龙GIF文件存在，尝试创建GIF视图")
+                if let gifView = GIFImageView.fileGIF(path: charmanderPath, loopCount: 0) {
+                    print("成功创建小火龙GIF视图")
+                    return AnyView(
+                        gifView
+                            .aspectRatio(.scaleAspectFit)
+                            .frame(width: 250, height: 250)
+                    )
+                } else {
+                    print("创建小火龙GIF视图失败")
+                }
+            } else {
+                print("小火龙GIF文件不存在于路径: \(charmanderPath)")
+            }
+        }
+        
+        // 获取动画GIF路径
+        if let gifPath = viewModel.getAnimationPath(for: pokemon.id) {
+            print("尝试加载GIF动画: \(gifPath)")
+            
+            // 确保文件确实存在
+            guard FileManager.default.fileExists(atPath: gifPath) else {
+                print("文件不存在，使用静态图片替代")
+                return AnyView(
+                    PokemonImageView(pokemon: pokemon, height: 200)
+                        .padding()
+                )
+            }
+            
+            // 尝试创建GIF视图
+            if let gifView = GIFImageView.fileGIF(path: gifPath, loopCount: 0) {
+                print("GIF视图创建成功")
+                return AnyView(
+                    gifView
+                        .aspectRatio(.scaleAspectFit)
+                        .frame(width: 250, height: 250)
+                )
+            } else {
+                print("GIF视图创建失败，使用静态图片替代")
+                return AnyView(
+                    PokemonImageView(pokemon: pokemon, height: 200)
+                )
+            }
+        } else {
+            print("未找到GIF路径，使用静态图片")
+            
+            // GIF不存在时显示静态图片
+            return AnyView(
+                PokemonImageView(pokemon: pokemon, height: 200)
+            )
+        }
     }
 }
 
@@ -142,7 +235,7 @@ struct InfoRow: View {
             Text(title)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-                .frame(width: 80, alignment: .leading)
+                .frame(width: 100, alignment: .leading)
             
             Text(value)
                 .font(.subheadline)
@@ -158,14 +251,15 @@ struct StatRow: View {
     var value: Int
     var color: Color
     
-    @StateObject private var viewModel = PokemonDetailViewModel()
+    // 使用共享的ViewModel实例
+    @ObservedObject private var viewModel = PokemonDetailViewModel()
     
     var body: some View {
         HStack {
             Text(title)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-                .frame(width: 60, alignment: .leading)
+                .frame(width: 80, alignment: .leading)
             
             Text("\(value)")
                 .font(.subheadline)

@@ -26,7 +26,7 @@ struct PokemonListView: View {
                     } else if let errorMessage = viewModel.errorMessage {
                         // 错误信息
                         VStack {
-                            Text("😢 出错了")
+                            Text("😢 出错了 Error")
                                 .font(.title)
                                 .padding(.bottom)
                             
@@ -34,7 +34,7 @@ struct PokemonListView: View {
                                 .multilineTextAlignment(.center)
                                 .foregroundColor(.secondary)
                             
-                            Button("重试") {
+                            Button("重试 Retry") {
                                 viewModel.loadPokemon()
                             }
                             .padding()
@@ -48,11 +48,12 @@ struct PokemonListView: View {
                     } else if viewModel.filteredPokemonList.isEmpty {
                         // 没有结果
                         VStack {
-                            Text("没有找到匹配的宝可梦")
+                            Text("没有找到匹配的宝可梦\nNo matching Pokémon found")
                                 .font(.headline)
                                 .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
                             
-                            Button("清除搜索") {
+                            Button("清除搜索 Clear Search") {
                                 viewModel.searchText = ""
                             }
                             .padding(.top)
@@ -78,7 +79,7 @@ struct PokemonListView: View {
                     }
                 }
             }
-            .navigationTitle("宝可梦图鉴")
+            .navigationTitle("宝可梦图鉴 Pokémon Library")
         }
         #if os(iOS)
         .navigationViewStyle(StackNavigationViewStyle())
@@ -95,7 +96,7 @@ struct SearchBar: View {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.gray)
             
-            TextField("搜索宝可梦名称、属性或能力", text: $text)
+            TextField("搜索宝可梦名称、属性或能力\nSearch by name, type or ability", text: $text)
                 .foregroundColor(.primary)
             
             if !text.isEmpty {
