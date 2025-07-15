@@ -4,14 +4,14 @@ import AVFoundation
 class SoundManager {
     static let shared = SoundManager()
     
-    // 旧的音频播放器（备用）
-    private var audioPlayer: AVAudioPlayer?
-    
     // 音频引擎组件
     private var audioEngine: AVAudioEngine?
     private var audioPlayerNode: AVAudioPlayerNode?
     private var pitchControl: AVAudioUnitTimePitch?
-    private var currentBuffer: AVAudioPCMBuffer?
+    private var formatConverter: AVAudioConverter?
+    
+    // 备用播放器
+    private var audioPlayer: AVAudioPlayer?
     
     private var cachedSoundPaths: [Int: String] = [:]
     
@@ -20,12 +20,9 @@ class SoundManager {
     private let playbackPitch: Float = -300  // 音调调整 (负值降低音调，正值提高音调)
     
     private init() {
-        // 初始化时扫描并缓存音频文件
-        scanAndCacheSounds()
-        // 设置音频会话
         setupAudioSession()
-        // 初始化音频引擎
         setupAudioEngine()
+        scanAndCacheSounds()
     }
     
     // 设置音频会话
@@ -41,88 +38,94 @@ class SoundManager {
     
     // 设置音频引擎
     private func setupAudioEngine() {
-        // 创建音频引擎和组件
         audioEngine = AVAudioEngine()
         audioPlayerNode = AVAudioPlayerNode()
         pitchControl = AVAudioUnitTimePitch()
         
-        // 设置初始音调和速度参数
-        pitchControl?.pitch = playbackPitch
-        pitchControl?.rate = playbackRate * 100 // AVAudioUnitTimePitch中的rate单位是百分比
+        guard let engine = audioEngine, let playerNode = audioPlayerNode, let pitch = pitchControl else {
+            print("无法初始化音频引擎组件")
+            return
+        }
         
-        // 连接音频组件
-        if let engine = audioEngine, let playerNode = audioPlayerNode, let pitch = pitchControl {
-            engine.attach(playerNode)
-            engine.attach(pitch)
-            
-            // 构建处理链: 播放节点 -> 音调控制 -> 输出
-            engine.connect(playerNode, to: pitch, format: nil)
-            engine.connect(pitch, to: engine.mainMixerNode, format: nil)
-            
-            // 准备引擎
-            do {
-                try engine.start()
-                print("音频引擎初始化成功")
-            } catch {
-                print("启动音频引擎失败: \(error.localizedDescription)")
-            }
+        // 设置音调和速度参数
+        pitch.pitch = playbackPitch
+        pitch.rate = playbackRate * 100
+        
+        // 添加节点到引擎
+        engine.attach(playerNode)
+        engine.attach(pitch)
+        
+        // 注意：连接将在播放时动态建立
+        
+        // 启动引擎
+        do {
+            try engine.start()
+            print("音频引擎初始化成功")
+        } catch {
+            print("启动音频引擎失败: \(error)")
         }
     }
     
-    // 获取Documents目录
-    private var documentsDirectory: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-    }
-    
-    // 扫描并缓存所有音频文件
+    // 扫描并缓存所有音频文件路径
     private func scanAndCacheSounds() {
         print("======= 扫描所有音频文件 =======")
         
         let fileManager = FileManager.default
-        let resourcePath = Bundle.main.resourcePath ?? ""
-        let soundsPath = "\(resourcePath)/Resources/Sounds"
-        
-        print("检查Sounds目录: \(soundsPath)")
-        
-        // 检查Sounds目录是否存在
-        var isDirectory: ObjCBool = false
-        guard fileManager.fileExists(atPath: soundsPath, isDirectory: &isDirectory), isDirectory.boolValue else {
-            print("Sounds目录不存在或不是目录")
-            return
-        }
-        
-        do {
-            // 获取所有文件
-            let files = try fileManager.contentsOfDirectory(atPath: soundsPath)
+        let soundPaths = [
+            // 主Bundle的Resources/Sounds目录
+            "\(Bundle.main.resourcePath!)/Resources/Sounds",
             
-            // 过滤音频文件
-            let soundFiles = files.filter { $0.hasSuffix(".mp3") || $0.hasSuffix(".wav") }
-            print("找到 \(soundFiles.count) 个音频文件")
+            // 直接在Bundle根目录
+            "\(Bundle.main.resourcePath!)"
+        ]
+        
+        for soundsPath in soundPaths {
+            print("检查Sounds目录: \(soundsPath)")
             
-            // 缓存每个音频文件
-            for soundFile in soundFiles {
-                let fullPath = "\(soundsPath)/\(soundFile)"
-                if let pokemonId = extractPokemonId(from: soundFile) {
-                    print("缓存 ID \(pokemonId) 的音频路径: \(fullPath)")
-                    cachedSoundPaths[pokemonId] = fullPath
+            var isDirectory: ObjCBool = false
+            if fileManager.fileExists(atPath: soundsPath, isDirectory: &isDirectory) && isDirectory.boolValue {
+                do {
+                    let files = try fileManager.contentsOfDirectory(atPath: soundsPath)
+                    let soundFiles = files.filter { $0.hasSuffix(".mp3") || $0.hasSuffix(".wav") }
+                    print("在 \(soundsPath) 找到 \(soundFiles.count) 个音频文件")
+                    
+                    for soundFile in soundFiles {
+                        let fullPath = "\(soundsPath)/\(soundFile)"
+                        if let pokemonId = extractPokemonId(from: soundFile) {
+                            cachedSoundPaths[pokemonId] = fullPath
+                            print("缓存 ID \(pokemonId) 的音频: \(soundFile)")
+                        }
+                    }
+                } catch {
+                    print("扫描目录失败 \(soundsPath): \(error)")
                 }
+            } else {
+                print("\(soundsPath) 不存在或不是目录")
             }
-            
-            print("已缓存 \(cachedSoundPaths.count) 个音频文件路径")
-        } catch {
-            print("扫描Sounds目录失败: \(error.localizedDescription)")
         }
         
+        print("总共缓存了 \(cachedSoundPaths.count) 个音频文件路径")
         print("======= 扫描完成 =======")
     }
     
     // 从文件名提取宝可梦ID
     private func extractPokemonId(from filename: String) -> Int? {
-        // 文件名格式: 001_Bulbasaur.mp3 或 025_Pikachu.wav
+        // 支持不同格式: 001_Bulbasaur.mp3, 1_Bulbasaur.mp3, Bulbasaur_001.mp3 等
+        
+        // 尝试从前缀获取ID (最常见格式: 001_Name.mp3)
         let components = filename.components(separatedBy: "_")
         if components.count >= 1, let idString = components.first, let id = Int(idString) {
             return id
         }
+        
+        // 尝试提取任何数字序列
+        if let idMatch = filename.range(of: #"\d{1,3}"#, options: .regularExpression) {
+            let idString = String(filename[idMatch])
+            if let id = Int(idString) {
+                return id
+            }
+        }
+        
         return nil
     }
     
@@ -130,41 +133,51 @@ class SoundManager {
     func getSoundPath(for pokemonId: Int, name: String? = nil) -> String? {
         print("获取ID为 \(pokemonId) 的音频路径")
         
-        // 检查缓存
-        if let cachedPath = cachedSoundPaths[pokemonId] {
-            print("从缓存中获取音频路径: \(cachedPath)")
-            if FileManager.default.fileExists(atPath: cachedPath) {
-                return cachedPath
-            } else {
-                print("缓存的路径不存在，尝试其他方法")
-            }
+        // 首先检查缓存
+        if let cachedPath = cachedSoundPaths[pokemonId], FileManager.default.fileExists(atPath: cachedPath) {
+            return cachedPath
         }
         
-        // 如果缓存中没有，尝试查找文件
+        // 准备可能的文件名
         let formattedId = String(format: "%03d", pokemonId)
+        let simpleId = String(pokemonId)
         let pokemonName = getPokemonName(for: pokemonId) ?? name ?? "Pokemon"
         
-        // 检查可能的路径
-        let possiblePaths = [
-            // Resources/Sounds目录 (.mp3)
-            "\(Bundle.main.resourcePath!)/Resources/Sounds/\(formattedId)_\(pokemonName).mp3",
-            
-            // Resources/Sounds目录 (.wav)
-            "\(Bundle.main.resourcePath!)/Resources/Sounds/\(formattedId)_\(pokemonName).wav",
-            
-            // Bundle资源 (.mp3)
-            Bundle.main.path(forResource: "\(formattedId)_\(pokemonName)", ofType: "mp3"),
-            
-            // Bundle资源 (.wav)
-            Bundle.main.path(forResource: "\(formattedId)_\(pokemonName)", ofType: "wav")
-        ].compactMap { $0 }
+        // 搜索可能的位置和文件名
+        let possibleNames = [
+            "\(formattedId)_\(pokemonName)",
+            "\(simpleId)_\(pokemonName)",
+            "\(formattedId)",
+            "\(pokemonName)_\(formattedId)",
+            "\(pokemonName)_\(simpleId)"
+        ]
         
-        // 检查所有可能的路径
-        for path in possiblePaths {
-            if FileManager.default.fileExists(atPath: path) {
-                print("找到音频文件: \(path)")
-                cachedSoundPaths[pokemonId] = path // 更新缓存
-                return path
+        let possibleLocations = [
+            "/Resources/Sounds",
+            ""  // 根目录
+        ]
+        
+        let possibleExtensions = ["mp3", "wav"]
+        
+        // 尝试所有可能的组合
+        for location in possibleLocations {
+            for name in possibleNames {
+                for ext in possibleExtensions {
+                    // 使用Bundle查找
+                    if let path = Bundle.main.path(forResource: name, ofType: ext) {
+                        print("找到音频文件: \(path)")
+                        cachedSoundPaths[pokemonId] = path
+                        return path
+                    }
+                    
+                    // 直接在路径中查找
+                    let directPath = "\(Bundle.main.bundlePath)\(location)/\(name).\(ext)"
+                    if FileManager.default.fileExists(atPath: directPath) {
+                        print("找到音频文件: \(directPath)")
+                        cachedSoundPaths[pokemonId] = directPath
+                        return directPath
+                    }
+                }
             }
         }
         
@@ -192,7 +205,7 @@ class SoundManager {
     
     // 播放宝可梦音频
     func playPokemonSound(for pokemonId: Int, name: String? = nil) {
-        // 停止当前正在播放的音频
+        // 停止当前播放
         stopSound()
         
         // 获取音频路径
@@ -201,60 +214,156 @@ class SoundManager {
             return
         }
         
-        // 使用音频引擎播放带有音调调整的音频
-        playWithAudioEngine(path: soundPath)
+        // 尝试播放
+        do {
+            try playSafely(path: soundPath)
+        } catch {
+            print("播放失败: \(error.localizedDescription)")
+        }
     }
     
-    // 使用音频引擎播放并处理音频
-    private func playWithAudioEngine(path: String) {
-        guard let engine = audioEngine, let playerNode = audioPlayerNode, let pitch = pitchControl else {
-            print("音频引擎未初始化")
+    // 安全播放 - 处理各种格式问题
+    private func playSafely(path: String) throws {
+        // 1. 先尝试直接播放
+        do {
+            try playWithStandardEngine(path: path)
             return
+        } catch {
+            print("标准播放方式失败，尝试备用方法: \(error.localizedDescription)")
         }
         
+        // 2. 尝试使用格式转换
         do {
-            // 准备音频文件
-            let audioFile = try AVAudioFile(forReading: URL(fileURLWithPath: path))
-            let format = audioFile.processingFormat
-            
-            // 创建音频缓冲区
-            guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(audioFile.length)) else {
-                print("无法创建音频缓冲区")
-                return
-            }
-            
-            // 加载音频数据
-            try audioFile.read(into: buffer)
-            currentBuffer = buffer
-            
-            // 确保引擎正在运行
-            if !engine.isRunning {
-                try engine.start()
-            }
-            
-            // 设置音调和速度
-            pitch.pitch = playbackPitch
-            pitch.rate = playbackRate * 100
-            
-            // 停止之前的播放
-            if playerNode.isPlaying {
-                playerNode.stop()
-            }
-            
-            // 播放音频
-            playerNode.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
-            playerNode.play()
-            
-            print("开始播放宝可梦音频（音调调整）: 速度=\(playbackRate), 音调调整=\(playbackPitch)")
+            try playWithFormatConversion(path: path)
+            return
         } catch {
-            print("播放音频失败: \(error.localizedDescription)")
-            
-            // 如果音频引擎播放失败，尝试使用备用方法
-            playWithAVAudioPlayer(path: path)
+            print("格式转换播放失败，尝试最后备用方法: \(error.localizedDescription)")
         }
+        
+        // 3. 最后备用 - 简单播放器
+        playWithAVAudioPlayer(path: path)
     }
     
-    // 使用AVAudioPlayer作为备用播放方法
+    // 标准引擎播放
+    private func playWithStandardEngine(path: String) throws {
+        guard let engine = audioEngine,
+              let playerNode = audioPlayerNode,
+              let pitch = pitchControl else {
+            throw NSError(domain: "SoundManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "音频引擎未初始化"])
+        }
+        
+        // 准备音频文件
+        let audioFileURL = URL(fileURLWithPath: path)
+        let audioFile = try AVAudioFile(forReading: audioFileURL)
+        let audioFormat = audioFile.processingFormat
+        
+        print("原始音频格式: 通道=\(audioFormat.channelCount), 采样率=\(audioFormat.sampleRate)Hz")
+        
+        // 重置节点和连接
+        playerNode.reset()
+        engine.disconnectNodeOutput(playerNode)
+        engine.disconnectNodeOutput(pitch)
+        
+        // 重新建立连接
+        engine.connect(playerNode, to: pitch, format: audioFormat)
+        engine.connect(pitch, to: engine.mainMixerNode, format: audioFormat)
+        
+        // 设置效果参数
+        pitch.pitch = playbackPitch
+        pitch.rate = playbackRate * 100
+        
+        // 加载音频数据
+        let buffer = AVAudioPCMBuffer(pcmFormat: audioFormat, frameCapacity: AVAudioFrameCount(audioFile.length))!
+        try audioFile.read(into: buffer)
+        
+        // 确保引擎运行
+        if !engine.isRunning {
+            try engine.start()
+        }
+        
+        // 播放音频
+        playerNode.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
+        playerNode.play()
+        
+        print("播放音频: \(path.components(separatedBy: "/").last ?? "未知")")
+    }
+    
+    // 带格式转换的播放
+    private func playWithFormatConversion(path: String) throws {
+        guard let engine = audioEngine,
+              let playerNode = audioPlayerNode,
+              let pitch = pitchControl else {
+            throw NSError(domain: "SoundManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "音频引擎未初始化"])
+        }
+        
+        // 读取原始音频
+        let audioFileURL = URL(fileURLWithPath: path)
+        let audioFile = try AVAudioFile(forReading: audioFileURL)
+        let sourceFormat = audioFile.processingFormat
+        
+        // 创建标准立体声格式
+        let standardFormat = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: 44100,
+            channels: 2,
+            interleaved: false)!
+        
+        // 重置连接
+        playerNode.reset()
+        engine.disconnectNodeOutput(playerNode)
+        engine.disconnectNodeOutput(pitch)
+        
+        // 建立新的连接，使用标准格式
+        engine.connect(playerNode, to: pitch, format: standardFormat)
+        engine.connect(pitch, to: engine.mainMixerNode, format: standardFormat)
+        
+        // 设置音频效果参数
+        pitch.pitch = playbackPitch
+        pitch.rate = playbackRate * 100
+        
+        // 创建转换器
+        guard let converter = AVAudioConverter(from: sourceFormat, to: standardFormat) else {
+            throw NSError(domain: "SoundManager", code: 2, userInfo: [NSLocalizedDescriptionKey: "无法创建音频格式转换器"])
+        }
+        
+        // 读取源音频数据
+        let sourceBuffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: AVAudioFrameCount(audioFile.length))!
+        try audioFile.read(into: sourceBuffer)
+        
+        // 创建目标缓冲区
+        let frameCount = AVAudioFrameCount(Double(sourceBuffer.frameLength) * standardFormat.sampleRate / sourceFormat.sampleRate)
+        guard let convertedBuffer = AVAudioPCMBuffer(pcmFormat: standardFormat, frameCapacity: frameCount) else {
+            throw NSError(domain: "SoundManager", code: 3, userInfo: [NSLocalizedDescriptionKey: "无法创建转换后的音频缓冲区"])
+        }
+        
+        // 转换格式
+        var error: NSError?
+        let status = converter.convert(to: convertedBuffer, error: &error) { _, statusVar in
+            statusVar.pointee = .haveData
+            return sourceBuffer
+        }
+        
+        if let error = error {
+            throw error
+        }
+        
+        if status == .error {
+            throw NSError(domain: "SoundManager", code: 4, userInfo: [NSLocalizedDescriptionKey: "音频转换失败"])
+        }
+        
+        // 确保引擎运行
+        if !engine.isRunning {
+            try engine.start()
+        }
+        
+        // 播放转换后的音频
+        playerNode.scheduleBuffer(convertedBuffer, at: nil, options: [], completionHandler: nil)
+        playerNode.play()
+        
+        print("播放转换后的音频: \(path.components(separatedBy: "/").last ?? "未知")")
+    }
+    
+    // 备用播放方法
     private func playWithAVAudioPlayer(path: String) {
         do {
             audioPlayer = try AVAudioPlayer(contentsOf: URL(fileURLWithPath: path))
@@ -263,36 +372,28 @@ class SoundManager {
             audioPlayer?.prepareToPlay()
             audioPlayer?.play()
             
-            print("使用备用方法播放音频（只能调整速度）: 速度=\(playbackRate)")
+            print("使用备用播放器播放: \(path.components(separatedBy: "/").last ?? "未知")")
         } catch {
-            print("备用播放方法失败: \(error.localizedDescription)")
+            print("备用播放方法也失败: \(error.localizedDescription)")
         }
     }
     
-    // 停止播放音频
+    // 停止所有音频播放
     func stopSound() {
-        // 停止音频引擎播放
-        if let playerNode = audioPlayerNode, playerNode.isPlaying {
-            playerNode.stop()
-            print("停止音频引擎播放")
-        }
+        // 停止音频引擎
+        audioPlayerNode?.stop()
         
         // 停止备用播放器
-        if let player = audioPlayer, player.isPlaying {
-            player.stop()
-            print("停止备用播放器")
-        }
+        audioPlayer?.stop()
     }
     
     // 调整音调
     func adjustPitch(to pitch: Float) {
         pitchControl?.pitch = pitch
-        print("调整音调为: \(pitch)")
     }
     
     // 调整播放速度
     func adjustRate(to rate: Float) {
-        pitchControl?.rate = rate * 100
-        print("调整播放速度为: \(rate)")
+        pitchControl?.rate = rate * 100 // 百分比
     }
 } 
