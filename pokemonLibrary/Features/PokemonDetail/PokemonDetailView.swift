@@ -70,6 +70,20 @@ struct PokemonDetailView: View {
                                 }
                             }
                             .padding(.top, 4)
+                            
+                            // 播放声音按钮
+                            Button(action: {
+                                viewModel.playPokemonSound()
+                            }) {
+                                Label("播放叫声 Play Cry", systemImage: "speaker.wave.2.fill")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Color.blue)
+                                    .cornerRadius(20)
+                            }
+                            .padding(.top, 8)
                         }
                         .padding(.bottom)
                         
@@ -158,6 +172,10 @@ struct PokemonDetailView: View {
                     }
                 }
             }
+        }
+        .onDisappear {
+            // 离开页面时停止音频播放
+            SoundManager.shared.stopSound()
         }
     }
     
@@ -251,34 +269,33 @@ struct StatRow: View {
     var value: Int
     var color: Color
     
-    // 使用共享的ViewModel实例
-    @ObservedObject private var viewModel = PokemonDetailViewModel()
-    
     var body: some View {
-        HStack {
-            Text(title)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .frame(width: 80, alignment: .leading)
-            
-            Text("\(value)")
-                .font(.subheadline)
-                .frame(width: 40, alignment: .trailing)
+        VStack(alignment: .leading) {
+            HStack {
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                Text("\(value)")
+                    .font(.subheadline)
+                    .bold()
+            }
             
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     Rectangle()
-                        .frame(width: geometry.size.width, height: 8)
-                        .opacity(0.1)
-                        .foregroundColor(color)
+                        .frame(width: geometry.size.width, height: 6)
+                        .opacity(0.3)
+                        .foregroundColor(Color.gray)
                     
                     Rectangle()
-                        .frame(width: min(CGFloat(viewModel.getStatPercentage(for: value)) * geometry.size.width, geometry.size.width), height: 8)
+                        .frame(width: geometry.size.width * CGFloat(min(Double(value) / 255.0, 1.0)), height: 6)
                         .foregroundColor(color)
                 }
-                .cornerRadius(4)
             }
-            .frame(height: 8)
+            .frame(height: 6)
         }
     }
 }

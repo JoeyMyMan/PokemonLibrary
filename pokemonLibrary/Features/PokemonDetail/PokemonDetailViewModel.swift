@@ -24,6 +24,9 @@ class PokemonDetailViewModel: ObservableObject {
             
             if let fetchedPokemon = self.pokemonService.getPokemon(byId: id) {
                 self.pokemon = fetchedPokemon
+                
+                // 播放宝可梦音频
+                self.playPokemonSound()
             } else {
                 self.errorMessage = "未找到ID为\(id)的宝可梦 Pokemon not found with ID \(id)"
             }
@@ -43,5 +46,25 @@ class PokemonDetailViewModel: ObservableObject {
     func getAnimationPath(for pokemonId: Int) -> String? {
         // 直接使用GIFManager获取GIF路径
         return GIFManager.shared.getGIFPath(for: pokemonId, name: pokemon?.name)
+    }
+    
+    // 播放宝可梦音频
+    func playPokemonSound() {
+        guard let pokemon = pokemon else { return }
+        
+        // 使用SoundManager播放宝可梦音频
+        SoundManager.shared.playPokemonSound(for: pokemon.id, name: getPokemonEnglishName(for: pokemon))
+    }
+    
+    // 获取宝可梦英文名称
+    private func getPokemonEnglishName(for pokemon: Pokemon) -> String {
+        // 从名称中提取英文部分（假设格式为"中文 英文"）
+        let components = pokemon.name.components(separatedBy: " ")
+        if components.count > 1 {
+            return components[1]
+        }
+        
+        // 如果没有英文名，使用SoundManager中的映射
+        return ""
     }
 } 
