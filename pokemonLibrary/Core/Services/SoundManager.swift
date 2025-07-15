@@ -7,9 +7,26 @@ class SoundManager {
     private var audioPlayer: AVAudioPlayer?
     private var cachedSoundPaths: [Int: String] = [:]
     
+    // 音频播放速率 (0.5 = 半速, 1.0 = 正常速度, 2.0 = 两倍速)
+    // 降低默认播放速率，使声音听起来更自然
+    private let playbackRate: Float = 0.7
+    
     private init() {
         // 初始化时扫描并缓存音频文件
         scanAndCacheSounds()
+        // 设置音频会话
+        setupAudioSession()
+    }
+    
+    // 设置音频会话
+    private func setupAudioSession() {
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.playback, mode: .default)
+            try audioSession.setActive(true)
+        } catch {
+            print("设置音频会话失败: \(error.localizedDescription)")
+        }
     }
     
     // 获取Documents目录
@@ -147,9 +164,17 @@ class SoundManager {
         do {
             // 创建音频播放器
             audioPlayer = try AVAudioPlayer(contentsOf: URL(fileURLWithPath: soundPath))
+            
+            // 设置播放速率
+            audioPlayer?.enableRate = true
+            audioPlayer?.rate = playbackRate
+            
+            // 可以调整音量，使音频更清晰
+            audioPlayer?.volume = 1.0
+            
             audioPlayer?.prepareToPlay()
             audioPlayer?.play()
-            print("开始播放宝可梦音频: ID=\(pokemonId)")
+            print("开始播放宝可梦音频: ID=\(pokemonId), 播放速率=\(playbackRate)")
         } catch {
             print("播放音频失败: \(error.localizedDescription)")
         }
@@ -160,6 +185,15 @@ class SoundManager {
         if let player = audioPlayer, player.isPlaying {
             player.stop()
             print("停止播放音频")
+        }
+    }
+    
+    // 调整播放速度（在需要时可以动态调整速度）
+    func adjustPlaybackRate(to rate: Float) {
+        if let player = audioPlayer {
+            player.enableRate = true
+            player.rate = rate
+            print("调整播放速率为: \(rate)")
         }
     }
 } 
