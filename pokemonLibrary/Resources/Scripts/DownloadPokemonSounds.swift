@@ -101,8 +101,13 @@ class PokemonSoundDownloader {
         RunLoop.main.run(until: Date(timeIntervalSinceNow: 60))
         print("下载脚本执行完毕")
     }
+    
+    // 添加静态方法用于执行
+    static func main() {
+        let downloader = PokemonSoundDownloader()
+        downloader.run()
+    }
 }
 
-// 使用示例
-let downloader = PokemonSoundDownloader()
-downloader.run() 
+// 如果需要运行脚本，取消下面的注释并执行
+// PokemonSoundDownloader.main() 
