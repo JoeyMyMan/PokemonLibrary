@@ -33,7 +33,7 @@ struct GIFDebugView: View {
                     }
                 }
                 .pickerStyle(MenuPickerStyle())
-                .onChange(of: selectedPokemonId) { _ in
+                .onChange(of: selectedPokemonId) { _, _ in
                     checkSelectedPokemon()
                 }
                 
