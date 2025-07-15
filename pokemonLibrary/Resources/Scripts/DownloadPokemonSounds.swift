@@ -1,15 +1,11 @@
 import Foundation
 
-/*
- 这个脚本用于下载宝可梦的音频文件
- 使用方法：
- 1. 在Xcode中运行此脚本
- 2. 脚本会下载指定宝可梦的音频文件到Resources/Sounds目录
- */
-
 class PokemonSoundDownloader {
-    // 宝可梦ID和名称的映射
-    static let pokemonData: [(id: Int, name: String)] = [
+    private let baseURL = "https://play.pokemonshowdown.com/audio/cries/src/"
+    private let destinationFolder: URL
+    
+    // 要下载的宝可梦列表及其ID
+    private let pokemonList: [(id: Int, name: String)] = [
         (1, "Bulbasaur"),
         (4, "Charmander"),
         (6, "Charizard"),
@@ -22,103 +18,91 @@ class PokemonSoundDownloader {
         (149, "Dragonite"),
         (150, "Mewtwo")
     ]
-
-    // 创建Sounds目录
-    static func createSoundsDirectory() -> URL? {
-        guard let resourcePath = Bundle.main.resourcePath else {
-            print("无法获取资源路径")
-            return nil
-        }
-        
-        let soundsDirectoryPath = resourcePath + "/Resources/Sounds"
+    
+    init() {
+        // 获取项目Resources/Sounds目录
         let fileManager = FileManager.default
+        let currentDirectoryURL = URL(fileURLWithPath: fileManager.currentDirectoryPath)
         
-        if !fileManager.fileExists(atPath: soundsDirectoryPath) {
-            do {
-                try fileManager.createDirectory(atPath: soundsDirectoryPath, withIntermediateDirectories: true)
-                print("创建Sounds目录成功: \(soundsDirectoryPath)")
-            } catch {
-                print("创建Sounds目录失败: \(error.localizedDescription)")
-                return nil
-            }
+        // 创建Resources/Sounds目录路径
+        let soundsDirectoryPath = "pokemonLibrary/Resources/Sounds"
+        destinationFolder = currentDirectoryURL.appendingPathComponent(soundsDirectoryPath)
+        
+        // 确保目录存在
+        do {
+            try fileManager.createDirectory(at: destinationFolder, 
+                                           withIntermediateDirectories: true, 
+                                           attributes: nil)
+            print("目标目录已创建或已存在：\(destinationFolder.path)")
+        } catch {
+            print("创建目录失败：\(error.localizedDescription)")
         }
-        
-        return URL(fileURLWithPath: soundsDirectoryPath)
     }
-
-    // 下载音频文件
-    static func downloadPokemonSound(id: Int, name: String, to directory: URL) {
-        let formattedId = String(format: "%03d", id)
-        let fileName = "\(formattedId)_\(name).mp3"
-        let destinationURL = directory.appendingPathComponent(fileName)
+    
+    func downloadAllSounds() {
+        print("开始下载宝可梦音效...")
         
-        // 检查文件是否已存在
-        if FileManager.default.fileExists(atPath: destinationURL.path) {
-            print("音频文件已存在: \(fileName)")
+        for pokemon in pokemonList {
+            downloadSound(for: pokemon)
+        }
+        
+        print("所有下载任务已初始化，请等待完成...")
+    }
+    
+    private func downloadSound(for pokemon: (id: Int, name: String)) {
+        // Pokemon Showdown使用小写名称
+        let pokemonNameLowercase = pokemon.name.lowercased()
+        let pokemonURLString = baseURL + pokemonNameLowercase + ".wav"
+        
+        guard let url = URL(string: pokemonURLString) else {
+            print("无效的URL：\(pokemonURLString)")
             return
         }
         
-        // 构建下载URL
-        // 这里使用Pokemon Showdown的音频资源
-        let urlString = "https://play.pokemonshowdown.com/audio/cries/\(name.lowercased()).mp3"
-        guard let url = URL(string: urlString) else {
-            print("无效的URL: \(urlString)")
-            return
-        }
+        // 使用与现有文件相同的格式：ID_NAME.mp3
+        let formattedId = String(format: "%03d", pokemon.id)
+        let fileName = "\(formattedId)_\(pokemon.name).wav"
+        let destinationURL = destinationFolder.appendingPathComponent(fileName)
         
-        print("开始下载: \(urlString)")
-        
-        // 创建下载任务
-        let task = URLSession.shared.dataTask(with: url) { data, response, error in
+        let downloadTask = URLSession.shared.downloadTask(with: url) { tempFileURL, response, error in
             if let error = error {
-                print("下载失败: \(error.localizedDescription)")
+                print("下载\(pokemon.name)失败：\(error.localizedDescription)")
                 return
             }
             
-            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                print("服务器响应错误")
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode),
+                  let tempFileURL = tempFileURL else {
+                print("下载\(pokemon.name)失败：服务器响应无效")
                 return
             }
             
-            guard let data = data else {
-                print("没有接收到数据")
-                return
-            }
-            
-            // 保存文件
             do {
-                try data.write(to: destinationURL)
-                print("下载成功: \(fileName)")
+                // 如果目标文件已存在，先删除
+                if FileManager.default.fileExists(atPath: destinationURL.path) {
+                    try FileManager.default.removeItem(at: destinationURL)
+                }
+                
+                try FileManager.default.moveItem(at: tempFileURL, to: destinationURL)
+                print("✅ 成功下载\(pokemon.name)音效：\(fileName)")
             } catch {
-                print("保存文件失败: \(error.localizedDescription)")
+                print("保存\(pokemon.name)音效失败：\(error.localizedDescription)")
             }
         }
         
-        task.resume()
+        downloadTask.resume()
+        print("开始下载 \(pokemon.name)...")
     }
-
-    // 主函数
-    static func run() {
-        print("开始下载宝可梦音频文件...")
+    
+    func run() {
+        downloadAllSounds()
         
-        guard let soundsDirectory = createSoundsDirectory() else {
-            print("无法创建Sounds目录，下载取消")
-            return
-        }
-        
-        // 下载所有宝可梦的音频
-        for pokemon in pokemonData {
-            downloadPokemonSound(id: pokemon.id, name: pokemon.name, to: soundsDirectory)
-        }
-        
-        print("下载任务已启动，请等待下载完成...")
-        
-        // 等待所有下载完成
-        RunLoop.main.run(until: Date(timeIntervalSinceNow: 30))
-        
-        print("下载过程结束")
+        // 保持程序运行以等待异步下载完成
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 60))
+        print("下载脚本执行完毕")
     }
 }
 
-// 如果你要在命令行环境下运行此脚本，取消下面这行的注释
-// PokemonSoundDownloader.run() 
+// 使用示例
+let downloader = PokemonSoundDownloader()
+downloader.run() 
