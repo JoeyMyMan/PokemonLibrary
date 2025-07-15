@@ -3,9 +3,9 @@ import SwiftUI
 struct SplashScreenView: View {
     // 动画状态
     @State private var isAnimating = false
-    @State private var pokeBallRotation = 0.0
-    @State private var pokeBallScale: CGFloat = 0.1
-    @State private var pokeBallOpacity = 0.0
+    @State private var logoRotation = 0.0
+    @State private var logoScale: CGFloat = 0.1
+    @State private var logoOpacity = 0.0
     @State private var titleScale: CGFloat = 0.5
     @State private var titleOpacity = 0.0
     @State private var showRing = false
@@ -59,7 +59,7 @@ struct SplashScreenView: View {
                 
                 Spacer()
                 
-                // 精灵球动画
+                // Logo动画
                 ZStack {
                     // 外部光环
                     if showRing {
@@ -69,12 +69,11 @@ struct SplashScreenView: View {
                             .opacity(ringOpacity)
                     }
                     
-                    // 精灵球
-                    PokeBallView(rotation: pokeBallRotation)
-                        .frame(width: 150, height: 150)
-                        .scaleEffect(pokeBallScale)
-                        .opacity(pokeBallOpacity)
-                        .rotationEffect(.degrees(pokeBallRotation))
+                    // Logo
+                    LogoView(size: 180)
+                        .scaleEffect(logoScale)
+                        .opacity(logoOpacity)
+                        .rotationEffect(.degrees(logoRotation))
                 }
                 
                 Spacer()
@@ -92,15 +91,15 @@ struct SplashScreenView: View {
             gradientProgress = 1.0
         }
         
-        // 显示精灵球
+        // 显示Logo
         withAnimation(.easeOut(duration: 0.8)) {
-            pokeBallOpacity = 1.0
-            pokeBallScale = 1.0
+            logoOpacity = 1.0
+            logoScale = 1.0
         }
         
-        // 旋转精灵球
+        // 旋转Logo
         withAnimation(.easeInOut(duration: 3.0).repeatCount(2)) {
-            pokeBallRotation = 720
+            logoRotation = 360
         }
         
         // 显示标题
@@ -138,59 +137,6 @@ struct SplashScreenView: View {
                 onFinished()
             }
         }
-    }
-}
-
-// 精灵球视图
-struct PokeBallView: View {
-    var rotation: Double
-    
-    var body: some View {
-        ZStack {
-            // 上半部分（红色）
-            Circle()
-                .fill(Color.red)
-                .frame(width: 150, height: 150)
-                .overlay(
-                    Circle()
-                        .stroke(Color.black, lineWidth: 5)
-                )
-                .mask(
-                    Rectangle()
-                        .frame(width: 150, height: 75)
-                        .offset(y: -37.5)
-                )
-            
-            // 下半部分（白色）
-            Circle()
-                .fill(Color.white)
-                .frame(width: 150, height: 150)
-                .overlay(
-                    Circle()
-                        .stroke(Color.black, lineWidth: 5)
-                )
-                .mask(
-                    Rectangle()
-                        .frame(width: 150, height: 75)
-                        .offset(y: 37.5)
-                )
-            
-            // 中间的分割线
-            Rectangle()
-                .fill(Color.black)
-                .frame(width: 150, height: 5)
-            
-            // 中间的按钮
-            Circle()
-                .fill(Color.white)
-                .frame(width: 50, height: 50)
-                .overlay(
-                    Circle()
-                        .stroke(Color.black, lineWidth: 5)
-                )
-                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 2)
-        }
-        .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 5)
     }
 }
 
