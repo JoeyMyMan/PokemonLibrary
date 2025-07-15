@@ -3,9 +3,9 @@ import SwiftUI
 struct SplashScreenView: View {
     // 动画状态
     @State private var isAnimating = false
-    @State private var logoRotation = 0.0
-    @State private var logoScale: CGFloat = 0.1
-    @State private var logoOpacity = 0.0
+    @State private var pokeBallRotation = 0.0
+    @State private var pokeBallScale: CGFloat = 0.1
+    @State private var pokeBallOpacity = 0.0
     @State private var titleScale: CGFloat = 0.5
     @State private var titleOpacity = 0.0
     @State private var showRing = false
@@ -59,7 +59,7 @@ struct SplashScreenView: View {
                 
                 Spacer()
                 
-                // Logo动画
+                // 精灵球动画
                 ZStack {
                     // 外部光环
                     if showRing {
@@ -69,11 +69,12 @@ struct SplashScreenView: View {
                             .opacity(ringOpacity)
                     }
                     
-                    // Logo
-                    LogoView(size: 180)
-                        .scaleEffect(logoScale)
-                        .opacity(logoOpacity)
-                        .rotationEffect(.degrees(logoRotation))
+                    // 精灵球
+                    PokeBallView(rotation: pokeBallRotation)
+                        .frame(width: 150, height: 150)
+                        .scaleEffect(pokeBallScale)
+                        .opacity(pokeBallOpacity)
+                        .rotationEffect(.degrees(pokeBallRotation))
                 }
                 
                 Spacer()
@@ -91,15 +92,15 @@ struct SplashScreenView: View {
             gradientProgress = 1.0
         }
         
-        // 显示Logo
+        // 显示精灵球
         withAnimation(.easeOut(duration: 0.8)) {
-            logoOpacity = 1.0
-            logoScale = 1.0
+            pokeBallOpacity = 1.0
+            pokeBallScale = 1.0
         }
         
-        // 旋转Logo
+        // 旋转精灵球
         withAnimation(.easeInOut(duration: 3.0).repeatCount(2)) {
-            logoRotation = 360
+            pokeBallRotation = 720
         }
         
         // 显示标题
