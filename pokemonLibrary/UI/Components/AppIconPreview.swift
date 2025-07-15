@@ -33,7 +33,7 @@ struct AppIconPreview: View {
                     .font(.headline)
                 
                 Text("1. 在Xcode中运行预览")
-                Text("2. 右键点击图标，选择"Export as Image"")
+                Text("2. 右键点击图标，选择\"Export as Image\"")
                 Text("3. 保存到您的电脑")
                 Text("4. 在Xcode的Assets.xcassets中替换AppIcon")
             }
